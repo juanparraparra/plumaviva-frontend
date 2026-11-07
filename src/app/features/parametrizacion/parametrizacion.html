@@ -1,0 +1,141 @@
+<div class="page-head"><div><div class="crumbs">Configuración</div><h1>Parametrización</h1>
+  <p class="muted">Listas de chequeo, pesos, clasificación e importancia de los indicadores.
+    @if (!editable) { <b>Solo lectura: únicamente el administrador puede modificar.</b> }</p></div></div>
+
+<div class="card">
+  <div class="tabs" role="tablist" aria-label="Secciones de parametrización">
+    @for (p of pestanas; track p.k) {
+      <button type="button" role="tab" [class.on]="tab() === p.k" [attr.aria-selected]="tab() === p.k" (click)="tab.set(p.k)">{{ p.t }}</button>
+    }
+  </div>
+
+  @switch (tab()) {
+    @case ("lista") {
+      <div class="alert info">Versión <b>v2.0 (2024) · PUBLICADA</b>. Una lista publicada no se edita: los cambios crean una versión nueva.</div>
+      <h3>Capítulo I · aves de corral ({{ cap1.length }} indicadores)</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Código</th><th>Indicador</th><th>Numeral · tabla</th><th>Método</th><th>Jaula</th><th>Piso</th><th>Engorde</th></tr>
+        @for (i of cap1; track i.id) {
+          <tr><td class="nowrap"><b>{{ i.id }}</b></td><td>{{ i.n }}</td><td>{{ i.num }} · {{ i.tab }}</td><td>{{ i.met }}</td>
+            <td>{{ i.jaula ? "✓" : "—" }}</td><td>{{ i.piso ? "✓" : "—" }}</td><td>{{ i.engorde ? "✓" : "—" }}</td></tr>
+        }
+      </table></div>
+      <h3 class="sep">Capítulo II · traspatio ({{ cap2.length }} indicadores)</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Código</th><th>Indicador</th><th>Numeral · tabla</th><th>Método</th><th>Ponedora</th><th>Pollo</th></tr>
+        @for (i of cap2; track i.id) {
+          <tr><td class="nowrap"><b>{{ i.cod || i.id }}</b></td><td>{{ i.n }}</td><td>{{ i.num }} · {{ i.tab }}</td><td>{{ i.met }}</td>
+            <td>{{ i.pon ? "✓" : "—" }}</td><td>{{ i.pol ? "✓" : "—" }}</td></tr>
+        }
+      </table></div>
+    }
+
+    @case ("pesos") {
+      <p class="muted">Tabla 1 · peso de cada grupo de medidas. La suma de cada capítulo debe ser 100 %.</p>
+      <table>
+        <tr><th>Grupo de medidas</th><th>Aves de corral (Cap. I)</th><th>Traspatio (Cap. II)</th></tr>
+        @for (g of grupos; track g) {
+          <tr><td><b>{{ g }}</b><span class="tiny muted"> · {{ GCORTO[g] }}</span></td>
+            @for (c of capitulos; track c) {
+              <td><input type="number" min="0" max="100" class="peso" [attr.aria-label]="GCORTO[g] + ' · capítulo ' + c + ' (%)'"
+                [value]="borrador()[c][g]" [disabled]="!editable" (input)="setPeso(c, g, $any($event.target).value)"> %</td>
+            }
+          </tr>
+        }
+        <tr><td><b>Suma</b></td>
+          @for (c of capitulos; track c) {
+            <td><b [class]="sumas()[c] === 100 ? 'ok' : 'err'">{{ sumas()[c] }} %</b>
+              @if (sumas()[c] !== 100) { <span class="tiny muted"> · {{ sumas()[c] > 100 ? 'sobran' : 'faltan' }} {{ sumas()[c] > 100 ? sumas()[c] - 100 : 100 - sumas()[c] }} %</span> }</td>
+          }
+        </tr>
+      </table>
+      @if (errorPesos()) { <div class="alert err" role="alert">{{ errorPesos() }}</div> }
+      @if (editable) {
+        <div class="btn-row sep">
+          <button class="btn" type="button" [disabled]="!pesosValidos() || !hayCambios()" (click)="guardarPesos()">Guardar pesos</button>
+          <button class="btn sec" type="button" [disabled]="!hayCambios()" (click)="descartarPesos()">Descartar cambios</button>
+        </div>
+      }
+    }
+
+    @case ("niveles") {
+      <p class="muted">Tabla 2 · clasificación final del bienestar según el resultado de la evaluación.</p>
+      <table>
+        <tr><th>Nivel</th><th>Desde (%)</th><th>Hasta</th></tr>
+        @for (n of niveles(); track n.n; let k = $index) {
+          <tr><td><span class="lvl" [class]="'lvl ' + n.n">{{ n.n }}</span></td><td>{{ n.min }}</td><td>{{ k === 0 ? "100" : "< " + niveles()[k - 1].min }}</td></tr>
+        }
+      </table>
+    }
+
+    @case ("importancia") {
+      <div class="alert warn"><b>Propuesta del proyecto.</b> La metodología puntúa cada indicador de 0 a 2 y no define por sí sola una lista de indicadores «obligatorios». Esta clasificación se basa en el riesgo para el ave y en los requisitos legales de base, y debe validarse contra la normativa vigente.
+        @if (editable) { Cada cambio queda en el control de cambios y los planes de mejora se recalculan. }</div>
+
+      <h3>1. Escala de importancia</h3>
+      <table><tr><th>Nivel</th><th>Criterio</th><th>Carácter</th></tr>
+        @for (n of escala; track n) {
+          <tr><td><span class="imp" [class]="'imp i' + n"><span class="dots">{{ puntos(n) }}</span> {{ IMP[n].n }}</span></td><td class="small">{{ IMP[n].d }}</td>
+            <td>@if (n >= oblDesde()) { <span class="tag t-err">Obligatorio</span> } @else { <span class="tag t-gray">No obligatorio</span> }</td></tr>
+        }
+      </table>
+      <div class="field limite"><label for="oblDesde">Son de obligatorio cumplimiento los indicadores desde el nivel</label>
+        <select id="oblDesde" [disabled]="!editable" [value]="oblDesde()" (change)="setObl($any($event.target).value)">
+          @for (n of escala; track n) { <option [value]="n">{{ n }} · {{ IMP[n].n }} y superiores</option> }
+        </select></div>
+
+      <h3>2. Prioridad del plan de mejora</h3>
+      <p class="muted small">La prioridad sale de la importancia, del resultado del indicador y de la reincidencia. Solo ordena el plan: las recomendaciones son informativas, sin plazo ni cumplimiento obligatorio.</p>
+      <table><tr><th>Prioridad</th><th>Cuándo se asigna</th></tr>
+        @for (p of prioridades; track p) { <tr><td><span class="tag" [class]="'tag ' + PRIO[p][1]">{{ ICO[p] }} {{ PRIO[p][0] }}</span></td><td class="small">{{ REGLA[p] }}</td></tr> }
+      </table>
+      <label class="check sep"><input type="checkbox" [checked]="reincidencia()" [disabled]="!editable" (change)="setReinc($event)"> {{ REINC }}</label>
+
+      <h3 class="sep">3. Clasificación de los indicadores · Capítulo I · aves de corral</h3>
+      <ng-container *ngTemplateOutlet="tablaImp; context: { $implicit: cap1 }" />
+      <h3 class="sep">Capítulo II · traspatio</h3>
+      <ng-container *ngTemplateOutlet="tablaImp; context: { $implicit: cap2 }" />
+    }
+
+    @case ("muestreo") {
+      <h3>Tabla 3 · galpones a inspeccionar</h3>
+      <table><tr><th>Capacidad instalada</th><th>Máximo de galpones</th></tr>
+        <tr><td>Hasta 50.000 aves</td><td>1</td></tr><tr><td>Más de 50.000 aves</td><td>2</td></tr></table>
+      <h3 class="sep">Reglas de muestreo (6.1 · Ilustración 2)</h3>
+      <ul class="list-clean">
+        <li>9 puntos por galpón: extremos y centro, iniciando por la entrada más cercana.</li>
+        <li>Piso: 15 a 30 aves por punto.</li>
+        <li>Jaula: 3 a 5 jaulas (abajo, intermedio, arriba) con 10 a 20 aves en total.</li>
+        <li>Traspatio (numeral 11): se evalúan todos los corrales, priorizando las aves de mayor edad; 1 punto por cada 15 aves y 1 a 2 aves por punto (con menos de 15 aves se evalúan todas). Sin corral: mínimo 10 aves (si hay menos, todas) y todos los recursos disponibles.</li>
+      </ul>
+    }
+  }
+</div>
+
+<ng-template #tablaImp let-lista>
+  <div class="table-wrap"><table>
+    <tr><th>Código</th><th>Indicador</th><th>Grupo</th><th>Importancia</th><th>Carácter</th><th>Prioridad si no cumple</th><th><span class="sr-only">Acciones</span></th></tr>
+    @for (i of lista; track i.id) {
+      <tr><td class="nowrap"><b>{{ codeOf(i) }}</b></td><td>{{ i.n }}</td><td>{{ i.g }}</td>
+        <td>@if (editable) {
+            <select [attr.aria-label]="'Importancia de ' + i.n" [value]="imp(i)" (change)="setImportancia(i, $any($event.target).value)">
+              @for (n of escala; track n) { <option [value]="n">{{ n }} · {{ IMP[n].n }}</option> }
+            </select>
+          } @else { <span class="imp" [class]="'imp i' + imp(i)" [title]="IMP[imp(i)].d"><span class="dots">{{ puntos(imp(i)) }}</span> {{ IMP[imp(i)].n }}</span> }</td>
+        <td>@if (esObl(i)) { <span class="tag t-err">Obligatorio</span> } @else { <span class="tag t-gray">No obligatorio</span> }</td>
+        <td class="small">{{ prioriza(i)[0] }} si &lt; 50 % · {{ prioriza(i)[1] }} si es parcial</td>
+        <td><button class="btn sec sm" type="button" (click)="detalle.set(i)">Acciones</button></td></tr>
+    }
+  </table></div>
+</ng-template>
+
+@if (detalle(); as i) {
+  <pv-modal [titulo]="'Acciones sugeridas · ' + codeOf(i) + ' ' + i.n" (cerrar)="detalle.set(null)">
+    <p><span class="imp" [class]="'imp i' + imp(i)"><span class="dots">{{ puntos(imp(i)) }}</span> {{ IMP[imp(i)].n }}</span>
+      @if (esObl(i)) { <span class="tag t-err">Obligatorio</span> } @else { <span class="tag t-gray">No obligatorio</span> }</p>
+    <p class="small"><b>Meta (2 puntos):</b> {{ meta(i) }}</p>
+    <ul>@for (a of acciones(); track a) { <li>{{ a }}</li> } @empty { <li>Sin acciones registradas.</li> }</ul>
+    @if (i.crit) { <p class="small"><b>Condiciones a verificar:</b></p><ul>@for (c of i.crit; track c) { <li>{{ c }}</li> }</ul> }
+    <ng-container pie><button class="btn" type="button" (click)="detalle.set(null)">Cerrar</button></ng-container>
+  </pv-modal>
+}

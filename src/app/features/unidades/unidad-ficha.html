@@ -1,0 +1,146 @@
+@if (u(); as u) {
+<div class="page-head"><div><div class="crumbs"><a routerLink="/unidades">Unidades productivas</a> › Ficha</div><h1>{{ u.nombre }}</h1>
+  <p class="muted">{{ u.mun }}, {{ u.depto }} · {{ m.tipoPredio(u) }} · <span class="tag" [class]="u.estado === 'ACTIVA' ? 'tag t-ok' : 'tag t-err'">{{ m.estU(u) }}</span></p></div>
+  <div class="btn-row">
+    @if (puedeEditar()) { <a class="btn sec" [routerLink]="['/unidad-form', u.id]">Editar</a> }
+    @if (admin) {
+      @if (u.estado === 'ACTIVA') { <button class="btn danger" type="button" (click)="abrirInhabilitar()">Inhabilitar unidad</button>
+        @if (!m.tieneHistorial(u)) { <button class="btn sec" type="button" (click)="abrirDuplicada()">Eliminar registro duplicado</button> } }
+      @else { <button class="btn" type="button" (click)="dialogo.set('rehabilitar')">Rehabilitar unidad</button> }
+    }
+    @if (u.estado === 'ACTIVA') {
+      @if (!ab()) { @if (puedeCrearEval()) { <a class="btn" routerLink="/evaluacion-nueva" [queryParams]="{ u: u.id }">Iniciar nueva evaluación</a> } }
+      @else {
+        @if (edita() || gestiona) { <a class="btn" [routerLink]="['/evaluacion', ab().id]">{{ edita() ? (ab().estado === 'BORRADOR' ? 'Iniciar evaluación programada' : 'Retomar evaluación en curso') : 'Ver evaluación en curso' }}</a> }
+        @if (gestiona) { <button class="btn danger" type="button" (click)="dialogo.set('anular')">Anular evaluación</button> }
+      }
+    }
+  </div></div>
+
+@if (u.estado !== 'ACTIVA') {
+  <div class="alert err"><b>Unidad inhabilitada@if (u.inhab) { · {{ u.inhab.tipo.toLowerCase() }} }</b>
+    @if (u.inhab) { desde {{ u.inhab.fecha }} por {{ u.inhab.por }}.<br><b>Motivo:</b> {{ u.inhab.motivo }}<br><b>Descripción:</b> {{ u.inhab.detalle }} }
+    <div class="small" style="margin-top:4px">No admite nuevas evaluaciones ni cambios en su información. El historial, los resultados y los planes de mejora se conservan. {{ admin ? 'Si cambia la situación, use «Rehabilitar unidad».' : 'Solo un administrador puede rehabilitarla.' }}</div></div>
+}
+
+@if (verUnidades() || otras().length) {
+  <div class="quickbar no-print">
+    @if (verUnidades()) { <a class="btn sec sm" routerLink="/unidades">← Volver a unidades</a> }
+    @if (otras().length) { <select aria-label="Cambiar de unidad productiva" (change)="cambiarUnidad($any($event.target).value)"><option value="">Cambiar de unidad…</option>
+      @for (x of otras(); track x.id) { <option [value]="x.id">{{ x.nombre }} · {{ x.mun }}</option> }</select> }
+  </div>
+}
+
+<div class="card" [style.margin-bottom.px]="tab() === 'resumen' ? 10 : 18">
+  <div class="tabs" role="tablist" [style.margin-bottom.px]="tab() === 'resumen' ? 0 : 16">
+    @for (t of tabs; track t[0]) { <button type="button" role="tab" [class.on]="tab() === t[0]" [attr.aria-selected]="tab() === t[0]" (click)="irTab(t[0])">{{ t[1] }}</button> }
+  </div>
+
+  @switch (tab()) {
+    @case ('datos') {
+      <div class="grid g3">
+        <div><div class="tiny muted"><b>Propietario</b></div><div>{{ m.fullName(propietario()) }}</div></div>
+        <div><div class="tiny muted"><b>Documento del propietario</b></div><div>{{ m.docTxt(propietario()) }}</div></div>
+        <div><div class="tiny muted"><b>Correo y teléfono del propietario</b></div><div>{{ propietario().correo }}@if (propietario().tel) { · {{ propietario().tel }} }</div></div>
+        <div><div class="tiny muted"><b>Operario / administrador</b></div><div>{{ u.operario || '—' }}</div></div>
+        <div><div class="tiny muted"><b>Responsable técnico</b></div><div>{{ u.rt ? m.fullName(m.userById(u.rt)) : 'No aplica (traspatio)' }}</div></div>
+        <div><div class="tiny muted"><b>Código de predio ICA</b></div><div>{{ u.codigo || '—' }}</div></div>
+        <div><div class="tiny muted"><b>Capacidad instalada</b></div><div>{{ m.int(u.capacidad) }} aves</div></div>
+        <div><div class="tiny muted"><b>Tipo de predio (calculado)</b></div><div>{{ m.tipoPredio(u) }}</div></div>
+        <div><div class="tiny muted"><b>Certificado GAB</b></div><div>{{ u.gab ? 'Sí · vence ' + u.gabVence : 'No' }}</div></div>
+        <div><div class="tiny muted"><b>Total de aves (inventario)</b></div><div>{{ m.int(m.totalAves(u)) }}</div></div>
+        <div><div class="tiny muted"><b>Estado</b></div><div>{{ u.estado }}</div></div>
+      </div>
+    }
+    @case ('ubicacion') {
+      <div class="grid g3">
+        <div><div class="tiny muted"><b>Departamento</b></div><div>{{ u.depto }}</div></div><div><div class="tiny muted"><b>Municipio</b></div><div>{{ u.mun }}</div></div>
+        <div><div class="tiny muted"><b>Vereda</b></div><div>{{ u.vereda }}</div></div><div><div class="tiny muted"><b>Dirección</b></div><div>{{ u.dir || '—' }}</div></div>
+        <div><div class="tiny muted"><b>Indicaciones de llegada</b></div><div>{{ u.indic || '—' }}</div></div><div><div class="tiny muted"><b>Coordenadas</b></div><div>{{ coordenadas() }}</div></div>
+      </div>
+    }
+    @case ('especies') {
+      <table><tr><th>Sistema productivo</th><th>Capítulo</th><th>Pastoreo</th><th>Lista de chequeo</th></tr>
+        @for (e of u.especies; track e.sis) { <tr><td>{{ sis[e.sis] }}</td><td>{{ e.sis.startsWith('TRAS') ? 'II · traspatio' : 'I · aves de corral' }}</td><td>{{ e.pastoreo ? 'Sí' : 'No' }}</td><td>{{ e.sis.startsWith('TRAS') ? 'Metodología EBA traspatio v2.0 (2024)' : 'Metodología EBA aves de corral v2.0 (2024)' }}</td></tr> }</table>
+    }
+    @case ('galpones') {
+      <div class="table-wrap"><table><tr><th>Galpón / corral</th><th>Tipo</th><th class="num">Área útil m²</th><th class="num">Exterior m²</th><th class="num">Bebederos</th><th class="num">Comederos</th><th>Grupo etario</th><th class="num">Edad</th><th class="num">Aves</th></tr>
+        @for (g of u.galpones; track g.cod) { <tr><td><b>{{ g.cod }}</b></td><td>{{ g.tipo ? tipos[g.tipo][0] : '—' }}</td><td class="num">{{ m.int(g.area) }}</td><td class="num">{{ m.int(g.ext || g.patio || 0) }}</td><td class="num">{{ m.int(g.beb) }}</td><td class="num">{{ m.int(g.com) }}</td><td>{{ g.grupo || '—' }}</td><td class="num">{{ g.edad }} {{ g.unidad }}</td><td class="num">{{ m.int(g.aves) }}</td></tr> }
+        <tr><td colspan="8"><b>Total</b></td><td class="num"><b>{{ m.int(m.totalAves(u)) }}</b></td></tr></table></div>
+      <p class="tiny muted">Fecha de corte del inventario: {{ m.today() }} · el inventario se copia a cada evaluación.</p>
+    }
+    @case ('resumen') { <pv-resumen-unidad [u]="u" (detalle)="detalleCod.set($event)" (irTab)="irTab($event)" /> }
+    @case ('plan') {
+      @if (!snaps().length) { <div class="alert info">El plan de mejora se genera a partir de la primera evaluación finalizada de la unidad.</div> }
+      @else { @let last = snaps()[snaps().length - 1];
+        <div class="card-head"><h2>Plan de mejora de la última evaluación</h2><button class="btn sec sm no-print" type="button" (click)="imprimir()">🖨 Imprimir</button></div>
+        <p class="muted small">Basado en {{ last.codigo }} · {{ last.fecha }} · {{ m.fmt(last.total) }} %. Organizado por Medidas Basadas en el Animal (MBA), en los Recursos (MBR) y en la Gestión (MBG).
+          @if (snaps().length > 1) { Los planes de las evaluaciones anteriores se consultan desde el <a href="javascript:void 0" (click)="irTab('evaluaciones')">historial</a>. }</p>
+        <pv-plan [snap]="last" /> }
+    }
+    @case ('evaluaciones') {
+      @if (!snaps().length && !abiertas().length && !anuladas().length) { <p class="muted">Sin evaluaciones.</p> }
+      @else {
+        @if (snaps().length > 1) { <h4>Evolución de la unidad</h4><pv-tendencia [sn]="snaps()" /> }
+        <h4 style="margin-top:8px">Historial de evaluaciones</h4>
+        <div class="table-wrap"><table><tr><th>Código</th><th>Fecha</th><th>Estado</th><th class="num">Total</th><th>Nivel</th><th></th></tr>
+          @for (e of abiertas(); track e.id) { <tr><td>{{ e.codigo }}</td><td>{{ e.fecha }}</td><td><pv-estado [estado]="e.estado" /></td><td class="num">—</td><td></td>
+            <td class="num">@if (!externo) { <a class="btn sec sm" [routerLink]="['/evaluacion', e.id]">Abrir</a> }</td></tr> }
+          @for (h of historial(); track h.x.codigo) {
+            @if (h.tipo === 'snap') { <tr><td>{{ h.x.codigo }}@if (h.x.codigo === ultimaYBase()) { <span class="tag t-ok" title="El resumen de la unidad se basa en esta evaluación"> Base del resumen</span> }</td><td>{{ h.x.fecha }}</td>
+              <td><pv-estado [estado]="h.x.src === 'ev' ? h.x.estado : 'CERRADA'" /></td><td class="num">{{ m.fmt(h.x.total) }} %</td><td><pv-nivel [pct]="h.x.total" /></td>
+              <td class="num"><div class="btn-row" style="justify-content:flex-end">
+                @if (h.x.src === 'ev') { <a class="btn sec sm" [routerLink]="['/evaluacion', h.x.id, 'resultado']">Ver informe</a> } @else { <button class="btn sec sm" type="button" (click)="detalleCod.set(h.x.codigo)">Ver detalle</button> }
+                <a class="btn sec sm" [routerLink]="link(h.x)">Plan de mejora</a></div></td></tr> }
+            @else { <tr><td>{{ h.x.codigo }}</td><td>{{ h.x.fecha }}</td><td><pv-estado estado="ANULADA" />@if (h.x.anulada) { <div class="tiny muted">Anulada el {{ h.x.anulada.fecha }} por {{ h.x.anulada.por }}: {{ h.x.anulada.motivo }}</div> }</td><td class="num">—</td><td></td>
+              <td class="num">@if (!externo) { <a class="btn sec sm" [routerLink]="['/evaluacion', h.x.id]">Ver</a> }</td></tr> }
+          }
+        </table></div>
+        <p class="tiny muted">Cada evaluación conserva su propio inventario, resultado, acta y plan de mejora; las anuladas quedan con su motivo. El resumen de la unidad siempre usa la finalizada más reciente.</p>
+        <details style="margin-top:10px"><summary class="small"><b>Hallazgos corregidos entre evaluaciones ({{ resueltos().length }})</b></summary>
+          @if (resueltos().length) { <div class="table-wrap"><table><tr><th>Indicador</th><th>Identificado</th><th>Corregido en</th><th class="num">Tiempo en corregirse</th></tr>
+            @for (x of resueltos(); track x.ind.id + x.fecha) { <tr><td><b>{{ m.codeOf(x.ind) }}</b> · {{ x.ind.n }}</td><td class="small">{{ x.desde }} · {{ x.codDesde }} ({{ m.fmt(x.p0, 0) }} %)</td><td class="small">{{ x.en }} · {{ x.fecha }} <span class="tag t-ok">100 %</span></td><td class="num">{{ m.tiempoTxt(x.dias) }}</td></tr> }</table></div> }
+          @else { <p class="muted">Todavía no hay hallazgos corregidos entre evaluaciones.</p> }</details>
+      }
+    }
+  }
+
+  @if (tieneCambios()) {
+    <h3 class="sep">Historial de cambios{{ seccionCambios() ? ' · ' + seccionCambios().toLowerCase() : ' de datos de la unidad' }}</h3>
+    @if (cambios().length) {
+      <div class="table-wrap"><table><tr><th>Sección</th><th>Dato</th><th>Anterior</th><th>Nuevo</th></tr>
+        @for (c of cambios(); track c.fecha + c.por + $index) {
+          <tr class="grp"><td colspan="4"><b>{{ c.fecha }}</b> · {{ c.por }} ({{ m.roleName(c.rol) }}) · <span class="tiny muted">{{ refTxt(c.ref) }}</span>@if (c.motivo) { <div class="small">Motivo: {{ c.motivo }}</div> }</td></tr>
+          @for (i of c.items; track $index) { <tr><td>{{ i.grupo }}</td><td>{{ i.campo }}</td><td>{{ i.antes }}</td><td><b>{{ i.despues }}</b></td></tr> }
+        }</table></div>
+    } @else { <p class="muted">Todavía no se han registrado cambios{{ seccionCambios() ? ' en esta sección' : '' }}.</p> }
+    <p class="tiny muted">Cada evaluación conserva su propia copia del inventario: los cambios posteriores no modifican sus resultados.</p>
+  }
+  @if (tab() === 'datos' && movs().length) {
+    <h3 class="sep">Historial de estado de la unidad</h3>
+    <div class="table-wrap"><table><tr><th>Fecha</th><th>Cambio</th><th>Tipo</th><th>Motivo y descripción</th><th>Registrado por</th></tr>
+      @for (mv of movs(); track $index) { <tr><td>{{ mv.fecha }}</td><td><span class="tag" [class]="mv.accion === 'Inhabilitada' ? 'tag t-err' : 'tag t-ok'">{{ mv.accion }}</span></td><td>{{ mv.tipo || '—' }}</td><td class="small">{{ mv.motivo }} · {{ mv.detalle }}</td><td>{{ mv.por }}</td></tr> }</table></div>
+  }
+</div>
+
+@switch (dialogo()) {
+  @case ('inhabilitar') {
+    <pv-motivo-modal [titulo]="'Inhabilitar ' + u.nombre" okTxt="Inhabilitar unidad" [peligro]="true" [campos]="camposInh" ayuda="Explique la situación (mínimo 10 caracteres). Queda registrada en el historial de la unidad." (confirmar)="inhabilitar($event)" (cerrar)="dialogo.set('')">
+      <p>La unidad quedará <b>inhabilitada</b>:</p><ul class="small"><li>no se podrán programar evaluaciones;</li><li>su información (datos, ubicación, especies, galpones) no se podrá modificar;</li><li>el historial, los resultados y los planes de mejora se conservan;</li><li>podrá rehabilitarse cuando cambie la situación.</li></ul></pv-motivo-modal> }
+  @case ('rehabilitar') {
+    <pv-motivo-modal [titulo]="'Rehabilitar ' + u.nombre" okTxt="Rehabilitar unidad" [campos]="camposReh" ayuda="Indique el soporte o la situación actual (mínimo 10 caracteres)." (confirmar)="rehabilitar($event)" (cerrar)="dialogo.set('')">
+      <p>La unidad volverá a estar <b>activa</b>: podrá editarse y programarse una nueva evaluación. El historial anterior se conserva.</p>
+      @if (u.inhab) { <p class="small muted">Inhabilitada desde {{ u.inhab.fecha }}: {{ u.inhab.motivo }}.</p> }</pv-motivo-modal> }
+  @case ('duplicada') {
+    <pv-motivo-modal titulo="Eliminar registro duplicado" okTxt="Eliminar duplicada" [peligro]="true" [campos]="camposDup()" ayuda="Cómo se detectó la duplicidad (mínimo 10 caracteres)." (confirmar)="eliminarDuplicada($event)" (cerrar)="dialogo.set('')">
+      <p>Solo se elimina un registro <b>repetido o creado por error</b> que no tiene evaluaciones. Si la unidad dejó de operar, inhabilítela para conservar su historial.</p></pv-motivo-modal> }
+  @case ('bloqueo-inh') {
+    <pv-modal titulo="Antes de inhabilitar" (cerrar)="dialogo.set('')"><div class="alert warn"><b>{{ u.nombre }}</b> tiene la evaluación abierta <b>{{ ab().codigo }}</b> ({{ m.EST_LAB[ab().estado].toLowerCase() }}). Finalícela o anúlela, con su motivo, antes de inhabilitar la unidad.</div>
+      <ng-container pie><button class="btn sec" type="button" (click)="dialogo.set('')">Cerrar</button><a class="btn" [routerLink]="['/evaluacion', ab().id]">Ir a la evaluación</a></ng-container></pv-modal> }
+  @case ('bloqueo-dup') {
+    <pv-modal titulo="No se puede eliminar" (cerrar)="dialogo.set('')"><div class="alert err"><b>{{ u.nombre }}</b> tiene evaluaciones registradas. Con historial no se elimina: se inhabilita y se conserva.</div>
+      <ng-container pie><button class="btn sec" type="button" (click)="dialogo.set('')">Cerrar</button><button class="btn danger" type="button" (click)="abrirInhabilitar()">Inhabilitar unidad</button></ng-container></pv-modal> }
+  @case ('anular') { @if (ab()) { <pv-anular-evaluacion [ev]="ab()" (cerrar)="dialogo.set('')" /> } }
+}
+@if (detalleCod()) { <pv-detalle-snap [codigo]="detalleCod()" (cerrar)="detalleCod.set('')" /> }
+}

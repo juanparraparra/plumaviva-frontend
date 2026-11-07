@@ -1,0 +1,143 @@
+@let x = d();
+<div class="page-head">
+  <div><div class="crumbs">Inicio</div><h1>Hola, {{ nombre() }}</h1><p class="muted">{{ rol().plat }} · {{ sub() }}</p></div>
+  @if (puedeCrear()) { <a class="btn" routerLink="/evaluacion-nueva">+ Nueva evaluación</a> }
+</div>
+
+<ng-template #porAtender>
+  <div class="card"><div class="card-head"><h3>Por atender</h3><span class="tag t-info">{{ x.pend.length }}</span></div>
+    @if (x.pend.length) {
+      <div class="table-wrap"><table><tr><th>Tipo</th><th>Detalle</th><th></th></tr>
+        @for (q of x.pend.slice(0, 8); track $index) { <tr><td>{{ q[0] }}</td><td>{{ q[1] }}</td><td class="num"><a class="btn sec sm" [routerLink]="ruta(q[2])">Ir</a></td></tr> }
+      </table></div>
+      @if (x.pend.length > 8) { <p class="tiny muted">Se muestran 8 de {{ x.pend.length }}.</p> }
+    } @else { <p class="muted">No tiene pendientes.</p> }
+  </div>
+</ng-template>
+
+<ng-template #crecimiento><div class="card"><h3>Crecimiento de las evaluaciones en el tiempo</h3><pv-linea-acum [serie]="x.serie" /></div></ng-template>
+
+<ng-template #niveles let-t>
+  <div class="card"><h3>{{ t }}</h3><pv-columnas [items]="x.niveles" />
+    <p class="tiny muted">Según la última calificación de cada unidad · Tabla 2: Excelente ≥ 90 · Alto ≥ 75 · Medio ≥ 50 · Bajo &lt; 50</p></div>
+</ng-template>
+
+<ng-template #topBajas>
+  <div class="card"><h3>Las 5 unidades con menor calificación</h3>
+    @if (!x.top.length) { <p class="muted">Aún no hay calificaciones.</p> } @else {
+      <div class="table-wrap"><table><tr><th>#</th><th>Unidad productiva</th><th class="num">Calificación</th><th>Nivel</th>@if (rolId() !== 'CONS') { <th></th> }</tr>
+        @for (t of x.top; track t.u.id) {
+          <tr><td>{{ t.i + 1 }}</td>
+            <td><b>{{ t.anon ? 'Unidad ' + letra(t.i) : t.u.nombre }}</b><div class="tiny muted">{{ t.anon ? t.u.depto : t.u.mun + ' · ' + t.s.codigo + ' (' + t.s.fecha + ')' }}</div></td>
+            <td class="num"><b>{{ m.fmt(t.s.total) }} %</b></td><td><pv-nivel [pct]="t.s.total" /></td>
+            @if (rolId() !== 'CONS') { <td class="num"><a class="btn sec sm" [routerLink]="['/unidades', t.u.id]">Ver unidad</a></td> }</tr>
+        }
+      </table></div>
+    }
+  </div>
+</ng-template>
+
+@switch (rolId()) {
+  @case ('ADMIN') {
+    <div class="grid g4">
+      <pv-kpi [valor]="x.nUs" etiqueta="Usuarios registrados" [sub]="x.act + ' activos · ' + (x.nUs - x.act) + ' inactivos'" />
+      <pv-kpi [valor]="x.nUni" etiqueta="Unidades productivas" cls="oro" [sub]="x.uAct.length + ' activas · ' + (x.nUni - x.uAct.length) + ' inhabilitadas'" />
+      <pv-kpi [valor]="x.res.length + x.ab.length + x.anul" etiqueta="Evaluaciones totales" [sub]="x.res.length + ' finalizadas · ' + x.ab.length + ' abiertas' + (x.venc ? ' (' + x.venc + ' vencidas)' : '') + ' · ' + x.anul + ' anuladas'" />
+      <pv-kpi [valor]="x.prom == null ? '—' : m.fmt(x.prom) + ' %'" etiqueta="Bienestar promedio" cls="oro" sub="Última calificación de cada unidad activa" />
+    </div><br>
+    <div class="grid g2"><ng-container *ngTemplateOutlet="crecimiento" /><ng-container *ngTemplateOutlet="niveles; context: { $implicit: 'Unidades por nivel de bienestar' }" /></div>
+    <div class="grid g2"><ng-container *ngTemplateOutlet="topBajas" />
+      <div class="card"><h3>Usuarios por rol</h3><pv-barras-h [items]="x.porRol" /><p class="tiny muted">{{ x.nRoles }} roles definidos · <a routerLink="/roles">Administrar roles</a></p></div></div>
+    <div class="grid g2"><ng-container *ngTemplateOutlet="porAtender" />
+      <div class="card"><div class="card-head"><h3>Últimos cambios en la plataforma</h3><a class="btn sec sm" routerLink="/auditoria">Ver control de cambios</a></div>
+        @if (x.cambios.length) {
+          <div class="table-wrap"><table><tr><th>Fecha</th><th>Quién</th><th>Cambio</th></tr>
+            @for (c of x.cambios; track c.t + c.o) { <tr><td class="small" style="white-space:nowrap">{{ c.t }}</td><td class="small">{{ c.up || '—' }}</td>
+              <td class="small"><b>{{ c.a }}</b> · {{ c.o }}@if (c.det && c.det[0]) { <div class="tiny muted">{{ c.det[0].c }}: {{ c.det[0].a }} → <b>{{ c.det[0].d }}</b></div> }</td></tr> }
+          </table></div>
+        } @else { <p class="muted">Sin cambios registrados.</p> }
+      </div></div>
+  }
+  @case ('COORD') {
+    <div class="grid g4">
+      <pv-kpi [valor]="x.xval" etiqueta="Evaluaciones por validar" [cls]="x.xval ? 'alt' : ''" [sub]="x.xval ? 'Esperan su validación' : 'Todo al día'" />
+      <pv-kpi [valor]="x.ab.length" etiqueta="Evaluaciones abiertas" cls="oro" [sub]="x.venc ? x.venc + ' vencida(s)' : 'Ninguna vencida'" />
+      <pv-kpi [valor]="x.sinEv" etiqueta="Unidades sin evaluar en 12 meses" [cls]="x.sinEv ? 'alt' : ''" [sub]="'de ' + x.uAct.length + ' unidades activas'" />
+      <pv-kpi [valor]="x.prom == null ? '—' : m.fmt(x.prom) + ' %'" etiqueta="Bienestar promedio" cls="oro" sub="Última calificación por unidad" />
+    </div><br>
+    <div class="grid g2"><ng-container *ngTemplateOutlet="porAtender" />
+      <div class="card"><h3>Carga de los inspectores</h3><pv-barras-h [items]="x.insp" /><p class="tiny muted">Evaluaciones abiertas y finalizadas por inspector.</p></div></div>
+    <div class="grid g2"><ng-container *ngTemplateOutlet="crecimiento" /><ng-container *ngTemplateOutlet="niveles; context: { $implicit: 'Unidades por nivel de bienestar' }" /></div>
+    <ng-container *ngTemplateOutlet="topBajas" />
+  }
+  @case ('INSP') {
+    <div class="grid g4">
+      <pv-kpi [valor]="x.abm.length" etiqueta="Mis evaluaciones abiertas" cls="oro" />
+      <pv-kpi [valor]="x.vencm" etiqueta="Vencidas" [cls]="x.vencm ? 'alt' : ''" [sub]="'más de ' + store.PARAMS.diasCierre + ' días sin finalizar'" />
+      <pv-kpi [valor]="x.fin.length" etiqueta="Finalizadas por mí" />
+      <pv-kpi [valor]="x.prox || '—'" etiqueta="Próxima visita" [sub]="x.prox ? 'La más cercana por atender' : 'Sin visitas programadas'" />
+    </div><br>
+    <div class="card"><div class="card-head"><h3>Mis evaluaciones abiertas</h3><span class="tag t-info">{{ x.abm.length }}</span></div>
+      @if (x.abm.length) {
+        <div class="table-wrap"><table><tr><th>Código</th><th>Unidad productiva</th><th>Visita</th><th>Estado</th><th>Avance</th><th></th></tr>
+          @for (e of x.abm; track e.id) { <tr><td><b>{{ e.codigo }}</b></td><td>{{ m.unidadById(e.unidad).nombre }}</td><td>{{ e.fecha }}</td><td><pv-estado [estado]="e.estado" /></td><td><pv-progreso [ev]="e" /></td>
+            <td class="num"><a class="btn sm" [routerLink]="['/evaluacion', e.id]">{{ e.estado === 'BORRADOR' ? 'Iniciar' : 'Retomar' }}</a></td></tr> }
+        </table></div>
+      } @else { <p class="muted">No tiene evaluaciones abiertas.</p> }
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>Resultados de mis evaluaciones</h3><pv-columnas [items]="x.nivInsp" /><p class="tiny muted">Nivel de bienestar de las evaluaciones que he finalizado.</p></div>
+      <div class="card"><h3>Mis últimas evaluaciones finalizadas</h3>
+        @if (x.ultFin.length) {
+          <div class="table-wrap"><table><tr><th>Código</th><th>Unidad</th><th class="num">Total</th><th>Nivel</th></tr>
+            @for (r of x.ultFin; track r.e.id) { <tr><td>{{ r.e.codigo }}</td><td>{{ m.unidadById(r.e.unidad).nombre }}</td><td class="num">{{ m.fmt(r.t) }} %</td><td><pv-nivel [pct]="r.t" /></td></tr> }
+          </table></div>
+        } @else { <p class="muted">Aún no ha finalizado evaluaciones.</p> }
+      </div></div>
+    <ng-container *ngTemplateOutlet="porAtender" />
+  }
+  @case ('CONS') {
+    <div class="grid g4">
+      <pv-kpi [valor]="x.res.length" etiqueta="Evaluaciones consolidadas" />
+      <pv-kpi [valor]="x.ult.length" etiqueta="Unidades con calificación" cls="oro" />
+      <pv-kpi [valor]="x.promTodas == null ? '—' : m.fmt(x.promTodas) + ' %'" etiqueta="Bienestar promedio" sub="Todas las evaluaciones" />
+      <pv-kpi [valor]="x.ult.length ? m.fmt(x.altos / x.ult.length * 100, 0) + ' %' : '—'" etiqueta="Unidades en nivel Alto o superior" sub="Según su última calificación" />
+    </div><br>
+    <div class="grid g2"><ng-container *ngTemplateOutlet="crecimiento" /><ng-container *ngTemplateOutlet="niveles; context: { $implicit: 'Unidades por nivel de bienestar' }" /></div>
+    <div class="grid g2">
+      <div class="card"><h3>Promedio por grupo de medidas</h3>
+        @for (g of x.grupos; track g.t) { <div class="hbar"><span>{{ g.t }}</span><div class="track"><div class="fill" [style.width.%]="g.v || 0"></div></div><span class="num">{{ g.v == null ? '—' : m.fmt(g.v) + ' %' }}</span></div> }
+        <p class="tiny muted">MBG solo aplica en aves de corral (Capítulo I). Información agregada y anonimizada.</p></div>
+      <ng-container *ngTemplateOutlet="topBajas" /></div>
+  }
+  @default {
+    <div class="grid g4">
+      <pv-kpi [valor]="x.vis.length" [etiqueta]="rolId() === 'RT' ? 'Unidades a mi cargo' : 'Mis unidades productivas'" />
+      <pv-kpi [valor]="x.prom == null ? '—' : m.fmt(x.prom) + ' %'" etiqueta="Bienestar promedio" cls="oro" sub="Última calificación de cada unidad" />
+      @if (rolId() === 'RT') { <pv-kpi [valor]="x.crit" etiqueta="Incumplimientos vigentes" [cls]="x.crit ? 'alt' : ''" sub="Indicadores por debajo de 50 %"> </pv-kpi> }
+      @else { <pv-kpi [valor]="x.urg" etiqueta="Recomendaciones críticas y urgentes" [cls]="x.urg ? 'alt' : ''" sub="En el plan de mejora" /> }
+      <pv-kpi [valor]="x.enCurso" etiqueta="Evaluaciones en curso" [sub]="x.enCurso ? 'Hay una visita abierta' : 'Ninguna por ahora'" />
+    </div><br>
+    <div class="card"><h3>{{ rolId() === 'RT' ? 'Lo más importante ahora' : 'Lo primero que puede mejorar' }}</h3>
+      @if (!x.primeros.length) { <div class="alert ok">No hay recomendaciones pendientes: todos los indicadores están en 100 %.</div> } @else {
+        <ol class="top-acts">@for (r of x.primeros; track $index) { <li><pv-prio [p]="r.prio" /> <b>{{ m.codeOf(r.ind) }} · {{ r.ind.n }}</b>@if (x.vis.length > 1) { <span class="tiny muted"> {{ r.un.nombre }}</span> }<div class="small">{{ r.rec.acciones[0] }}</div></li> }</ol>
+        <p class="tiny muted">Recomendaciones informativas, sin plazo. El plan completo está en cada unidad.</p> }
+    </div>
+    <div class="grid g2">
+      @for (c of x.cards; track c.u.id) {
+        <div class="card"><div class="card-head"><h3>{{ c.u.nombre }}</h3>@if (c.u.estado !== 'ACTIVA') { <span class="tag t-err">Inhabilitada</span> }</div>
+          <p class="tiny muted" style="margin-top:-6px">{{ c.u.mun }}, {{ c.u.depto }} · {{ m.tipoPredio(c.u) }}</p>
+          @if (c.last) {
+            <div class="score"><div class="big">{{ m.fmt(c.last.total) }} %</div><pv-nivel [pct]="c.last.total" /></div><p class="tiny muted">{{ c.last.codigo }} · {{ c.last.fecha }}</p>
+            <div>@if (c.pl.recs.length) { @for (p of c.prios; track p.q) { <span class="tag" [class]="'tag ' + m.PRIO[p.q][1]">{{ m.PRIO_ICO[p.q] }} {{ m.PRIO[p.q][0] }}: {{ p.n }}</span> } } @else { <span class="tag t-ok">Todo en 100 %</span> }</div>
+            @if (c.sn.length > 1) { <div style="margin-top:6px"><pv-tendencia [sn]="c.sn" /></div> }
+            <div class="btn-row" style="margin-top:8px"><a class="btn sec sm" [routerLink]="['/unidades', c.u.id]">Ver resumen</a><a class="btn sec sm" [routerLink]="planHref(c.last)">Plan de mejora</a></div>
+          } @else { <p class="muted">Aún sin evaluaciones finalizadas.</p> }
+          @if (c.ab && esTecnico()) { <div class="alert info" style="margin-top:8px">Evaluación abierta: {{ c.ab.codigo }} <pv-estado [estado]="c.ab.estado" /></div> }
+        </div>
+      }
+    </div>
+    <ng-container *ngTemplateOutlet="porAtender" />
+  }
+}
+<pv-solicitudes />

@@ -1,0 +1,11 @@
+rules_version='2'
+
+// PlumaViva no usa Firestore (los datos viven en el backend Express + MySQL).
+// Se bloquea todo acceso desde el cliente para que nadie pueda leer ni escribir en esta base.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

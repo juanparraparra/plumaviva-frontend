@@ -1,0 +1,88 @@
+<div class="page-head"><div><div class="crumbs"><a routerLink="/unidades">Unidades productivas</a> › {{ id ? 'Editar' : 'Nueva' }}</div><h1>{{ id ? 'Editar unidad productiva' : 'Registrar unidad productiva' }}</h1>
+  <p class="muted">Los campos con * son obligatorios.</p></div><a class="btn sec" [routerLink]="id ? ['/unidades', id] : ['/unidades']">← Volver</a></div>
+
+<form id="fU" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+  <div class="card"><h2>1. Datos básicos</h2><div class="form">
+    <div class="field"><label for="fNom">Nombre de la unidad productiva *</label><input id="fNom" formControlName="nombre"></div>
+    <div class="field"><label for="fCod">Código de predio ICA</label><input id="fCod" formControlName="codigo"></div>
+    <div class="field"><label for="fProp">Propietario (titular) *</label><select id="fProp" formControlName="propietario">
+      @for (o of propietarios; track o.id) { <option [value]="o.id">{{ m.fullName(o) }} · {{ m.rolDe(o).nombre }}</option> }
+      @if (!esProd) { <option [value]="nuevo">+ Registrar un propietario nuevo</option> }</select></div>
+    <div class="field full" formGroupName="prop"><div class="prop-box"><div class="tiny muted" style="margin-bottom:6px">{{ esNuevoProp() ? 'Datos del nuevo propietario: queda registrado como productor y usuario activo.' : 'Datos del propietario traídos de la plataforma. Si los corrige, se actualizan en su usuario.' }}</div>
+      <div class="form">
+        @if (esNuevoProp()) { <div class="field"><label for="pNom">Nombres *</label><input id="pNom" formControlName="nombres"></div><div class="field"><label for="pApe">Apellidos *</label><input id="pApe" formControlName="apellidos"></div> }
+        <div class="field"><label for="pTD">Tipo de documento *</label><select id="pTD" formControlName="tipoDoc">@for (t of tiposDoc; track t[0]) { <option [value]="t[0]">{{ t[1][0] }} · {{ t[1][1] }}</option> }</select></div>
+        <div class="field"><label for="pDoc">Número de documento *</label><input id="pDoc" formControlName="doc" inputmode="numeric" placeholder="Solo números, sin puntos"></div>
+        <div class="field"><label for="pCor">Correo *</label><input id="pCor" type="email" formControlName="correo"></div>
+        <div class="field"><label for="pTel">Teléfono *</label><input id="pTel" type="tel" formControlName="tel" placeholder="300 000 0000"></div></div></div></div>
+    <div class="field"><label for="fOpe">Operario / administrador</label><input id="fOpe" formControlName="operario"></div>
+    <div class="field"><label for="fRt">Responsable técnico</label><select id="fRt" formControlName="rt"><option value="">No aplica (traspatio)</option>@for (o of responsables; track o.id) { <option [value]="o.id">{{ m.fullName(o) }} · {{ o.matricula || 'sin matrícula' }}</option> }</select></div>
+    <div class="field"><label for="fCap">Capacidad instalada (aves) *</label><input id="fCap" type="number" min="1" formControlName="capacidad"></div>
+    <div class="field"><label id="lGab">¿Certificado GAB?</label><div class="radio-row" role="radiogroup" aria-labelledby="lGab"><label><input type="radio" formControlName="gab" value="1"> Sí</label><label><input type="radio" formControlName="gab" value="0"> No</label></div></div>
+    <div class="field"><label for="fGab">Vigencia del GAB</label><input id="fGab" type="date" formControlName="gabVence"></div>
+  </div></div>
+
+  <div class="card"><h2>2. Ubicación</h2><div class="form">
+    <div class="field"><label for="fDep">Departamento *</label><select id="fDep" formControlName="depto">@for (d of deptos; track d) { <option>{{ d }}</option> }</select></div>
+    <div class="field"><label for="fMun">Municipio *</label><select id="fMun" formControlName="mun">@for (x of municipios(); track x) { <option>{{ x }}</option> }</select><span class="hint">Catálogo DANE (muestra de ejemplo).</span></div>
+    <div class="field"><label for="fVer">Vereda *</label><input id="fVer" formControlName="vereda"></div>
+    <div class="field"><label for="fDir">Dirección</label><input id="fDir" formControlName="dir"></div>
+    <div class="field full"><label for="fInd">Indicaciones de llegada</label><input id="fInd" formControlName="indic" placeholder="Ej.: después de la escuela, dos curvas arriba"></div>
+    <div class="field full"><label id="lCoord">Coordenadas (opcional)</label><div class="radio-row" role="radiogroup" aria-labelledby="lCoord">
+      <label><input type="radio" formControlName="coordSis" value="GEO"> Geográficas (lat / long)</label><label><input type="radio" formControlName="coordSis" value="CART"> Cartesianas X / Y (CTM12)</label><label><input type="radio" formControlName="coordSis" value="POLAR"> Polares (distancia y azimut)</label></div></div>
+    <div class="field full">
+      @switch (coordSis()) {
+        @case ('GEO') { <div class="form"><div class="field"><label for="cLat">Latitud</label><input id="cLat" type="number" step="0.00001" formControlName="lat"></div><div class="field"><label for="cLon">Longitud</label><input id="cLon" type="number" step="0.00001" formControlName="lon"></div>
+          <div class="field full"><div class="btn-row"><button type="button" class="btn sec sm" (click)="tomarGps()">📍 Tomar ubicación del dispositivo</button><span class="hint">{{ gpsMsg() }}</span></div></div></div> }
+        @case ('CART') { <div class="form"><div class="field"><label for="cX">X (Este, m)</label><input id="cX" type="number" [value]="cartX()" (input)="cartX.set($any($event.target).valueAsNumber)"></div>
+          <div class="field"><label for="cY">Y (Norte, m)</label><input id="cY" type="number" [value]="cartY()" (input)="cartY.set($any($event.target).valueAsNumber)"></div>
+          <div class="field full"><span class="hint">Origen Nacional CTM12 (EPSG 9377). La conversión a geográficas la hace el servidor.</span></div></div> }
+        @case ('POLAR') { <div class="form"><div class="field"><label for="pRef">Punto de referencia</label><input id="pRef" value="Escuela de la vereda"></div>
+          <div class="field"><label for="pX0">X0 · Y0 del punto (m)</label><input id="pX0" [value]="polarRef()" (input)="polarRef.set($any($event.target).value)"></div>
+          <div class="field"><label for="pD">Distancia d (m)</label><input id="pD" type="number" [value]="polarD()" (input)="polarD.set($any($event.target).valueAsNumber)"></div>
+          <div class="field"><label for="pAz">Azimut (°)</label><input id="pAz" type="number" [value]="polarAz()" (input)="polarAz.set($any($event.target).valueAsNumber)"></div>
+          <div class="field full"><label for="pRes">Resultado (X = X0 + d·sen az · Y = Y0 + d·cos az)</label><input id="pRes" readonly [value]="polarResultado()"></div></div> }
+      }
+    </div>
+  </div></div>
+
+  <div class="card"><h2>3. Especies y sistema productivo</h2>
+    <div formGroupName="sis">@for (s of sistemas; track s[0]) {
+      <label class="check"><input type="checkbox" [formControlName]="s[0]"> <span><b>{{ s[1] }}</b> · Capítulo {{ s[0].startsWith('TRAS') ? 'II (traspatio)' : 'I (aves de corral)' }}</span></label>
+      @if (s[0] === 'PONEDORA_PISO' && hayPonedoraPiso()) { <label class="check" style="margin-left:26px"><input type="checkbox" formControlName="pastoreo"> ¿Tiene pastoreo? (área = galpón + corrales exteriores, ≤ 4 aves/m²)</label> }
+    }</div>
+    <p class="tiny muted">Solo se muestran especies activas de la plataforma. Cada sistema carga su propia lista de chequeo.</p></div>
+
+  <div class="card"><div class="card-head"><h2>4. Galpones / corrales e inventario</h2><button type="button" class="btn sec sm" (click)="agregarGalpon()">+ Agregar galpón o corral</button></div>
+    <div class="table-wrap"><table formArrayName="galpones"><tr><th>Código</th><th>Tipo de galpón</th><th>Área útil m²</th><th>Exterior / patio m²</th><th>Bebederos</th><th>Comederos</th><th>Grupo etario</th><th>Edad</th><th>Aves</th><th><span class="sr-only">Quitar</span></th></tr>
+      @for (g of galpones.controls; track g; let i = $index) {
+        <tr [formGroupName]="i">
+          <td><input formControlName="cod" style="min-width:110px" [attr.aria-label]="'Código del galpón ' + (i + 1)"></td>
+          <td><select formControlName="tipo" [attr.aria-label]="'Tipo del galpón ' + (i + 1)"><option value="">—</option>@for (t of tiposGalpon; track t[0]) { <option [value]="t[0]">{{ t[1][0] }}</option> }</select></td>
+          <td><input type="number" formControlName="area" style="min-width:70px" [attr.aria-label]="'Área útil del galpón ' + (i + 1)"></td>
+          <td><input type="number" formControlName="ext" style="min-width:70px" [attr.aria-label]="'Exterior del galpón ' + (i + 1)"></td>
+          <td><input type="number" formControlName="beb" style="min-width:70px" [attr.aria-label]="'Bebederos del galpón ' + (i + 1)"></td>
+          <td><input type="number" formControlName="com" style="min-width:70px" [attr.aria-label]="'Comederos del galpón ' + (i + 1)"></td>
+          <td><input formControlName="grupo" style="min-width:110px" [attr.aria-label]="'Grupo etario del galpón ' + (i + 1)"></td>
+          <td style="white-space:nowrap"><input type="number" formControlName="edad" style="min-width:60px;width:64px" [attr.aria-label]="'Edad del galpón ' + (i + 1)"> <select formControlName="unidad" [attr.aria-label]="'Unidad de la edad'"><option>días</option><option>semanas</option></select></td>
+          <td><input type="number" formControlName="aves" style="min-width:70px" [attr.aria-label]="'Aves del galpón ' + (i + 1)"></td>
+          <td><button type="button" class="btn ghost sm" (click)="quitarGalpon(i)" [attr.aria-label]="'Quitar el galpón ' + (i + 1)">✕</button></td></tr>
+      }</table></div>
+    <div [class]="'alert ' + (total() >= 200 ? 'ok' : 'info')" style="margin-top:10px">Total de aves: <b>{{ m.int(total()) }}</b> → tipo de predio calculado: <b>{{ tipoTexto() }}</b> (≥ 200 aves = granja avícola · ≤ 199 = traspatio).</div></div>
+
+  <div class="card"><div id="fMsg">@if (errores().length) { <div class="alert err" role="alert">@for (e of errores(); track e) { {{ e }}<br> }</div> }</div>
+    <div class="btn-row"><a class="btn sec" [routerLink]="id ? ['/unidades', id] : ['/unidades']">Cancelar</a><button class="btn" type="submit">Guardar</button></div></div>
+</form>
+
+@if (confirmar(); as c) {
+  <pv-modal titulo="Confirmar cambios de datos" (cerrar)="confirmar.set(null)">
+    <p>Va a modificar <b>{{ c.cambios.length }}</b> dato(s) de <b>{{ original.nombre }}</b>. Quedarán en el historial de cambios de la unidad:</p>
+    <div class="table-wrap"><table><tr><th>Sección</th><th>Dato</th><th>Anterior</th><th>Nuevo</th></tr>@for (d of c.cambios; track $index) { <tr><td>{{ d.grupo }}</td><td>{{ d.campo }}</td><td>{{ d.antes }}</td><td><b>{{ d.despues }}</b></td></tr> }</table></div>
+    @if (c.abierta) { <div class="alert info" style="margin-top:8px">La unidad tiene la evaluación abierta <b>{{ c.abierta }}</b>. Esa evaluación conserva su propia copia del inventario: estos cambios no la modifican y se aplicarán desde la próxima evaluación.</div> }
+    @if (c.sens) { <div class="alert warn" style="margin-top:8px">Incluye datos que cambian cómo se evalúa la unidad (propietario, responsable técnico, capacidad, especies, tipo, área o aves). Indique el motivo.</div> }
+    <div class="field"><label for="cmMot">Motivo del cambio {{ c.sens ? '*' : '(opcional)' }}</label>
+      <textarea id="cmMot" rows="2" [placeholder]="c.sens ? 'Mínimo 10 caracteres.' : 'Ej.: actualización del inventario antes de la visita.'" [value]="motivo()" (input)="motivo.set($any($event.target).value)"></textarea>
+      @if (intentoMotivo() && c.sens && motivo().trim().length < 10) { <span class="hint" style="color:var(--vino)" role="alert">Escriba un motivo de al menos 10 caracteres.</span> }</div>
+    <ng-container pie><button class="btn sec" type="button" (click)="confirmar.set(null)">Cancelar</button><button class="btn" type="button" (click)="aplicar()">Guardar cambios</button></ng-container>
+  </pv-modal>
+}

@@ -19,7 +19,10 @@
     "@angular/forms": "^22.2.0",
     "@angular/platform-browser": "^22.2.0",
     "@angular/router": "^22.2.0",
+<<<<<<< HEAD
     "firebase": "^13.2.0",
+=======
+>>>>>>> b6edfd932bc2cafcef1294e9af6430ac4c18835f
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -32,4 +35,8 @@
     "typescript": "~6.0.2",
     "vitest": "^5.0.0"
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> b6edfd932bc2cafcef1294e9af6430ac4c18835f

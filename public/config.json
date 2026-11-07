@@ -1,3 +1,7 @@
 {
+<<<<<<< HEAD
   "apiUrl": "https://135-148-46-133.sslip.io/api"
+=======
+  "apiUrl": "https://TU_DOMINIO_O_IP:3000/api"
+>>>>>>> b6edfd932bc2cafcef1294e9af6430ac4c18835f
 }

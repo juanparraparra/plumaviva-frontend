@@ -22,8 +22,12 @@
             "assets": [
               {
                 "glob": "**/*",
+<<<<<<< HEAD
                 "input": "public",
                 "ignore": ["index.html"]
+=======
+                "input": "public"
+>>>>>>> b6edfd932bc2cafcef1294e9af6430ac4c18835f
               }
             ],
             "styles": [

@@ -1,5 +1,9 @@
 {
   "projects": {
+<<<<<<< HEAD
     "default": "pluma-viva-a3369"
+=======
+    "default": "TU_PROJECT_ID"
+>>>>>>> b6edfd932bc2cafcef1294e9af6430ac4c18835f
   }
 }

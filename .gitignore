@@ -48,8 +48,11 @@ Thumbs.db
 firebase-debug.log
 firebase-debug.*.log
 *-debug.log
+<<<<<<< HEAD
 
 # Secretos y cachés locales (no subir a GitHub)
 .env
 .env.*
 .firebase/
+=======
+>>>>>>> b6edfd932bc2cafcef1294e9af6430ac4c18835f

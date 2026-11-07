@@ -6,7 +6,10 @@
       "**/.*",
       "**/node_modules/**"
     ],
+<<<<<<< HEAD
     "cleanUrls": true,
+=======
+>>>>>>> b6edfd932bc2cafcef1294e9af6430ac4c18835f
     "rewrites": [
       {
         "source": "**",
@@ -15,7 +18,11 @@
     ],
     "headers": [
       {
+<<<<<<< HEAD
         "source": "**/*.@(js|css|woff2|png|jpg|svg|ico)",
+=======
+        "source": "**/*.@(js|css|woff|woff2|png|jpg|jpeg|gif|svg|ico)",
+>>>>>>> b6edfd932bc2cafcef1294e9af6430ac4c18835f
         "headers": [
           {
             "key": "Cache-Control",
@@ -24,7 +31,20 @@
         ]
       },
       {
+<<<<<<< HEAD
         "source": "/@(index.html|config.json)",
+=======
+        "source": "/index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/config.json",
+>>>>>>> b6edfd932bc2cafcef1294e9af6430ac4c18835f
         "headers": [
           {
             "key": "Cache-Control",
@@ -33,6 +53,7 @@
         ]
       }
     ]
+<<<<<<< HEAD
   },
   "firestore": {
     "database": "(default)",
@@ -68,3 +89,7 @@
     }
   }
 }
+=======
+  }
+}
+>>>>>>> b6edfd932bc2cafcef1294e9af6430ac4c18835f
